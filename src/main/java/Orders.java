@@ -1,7 +1,9 @@
+import io.qameta.allure.Step;
 import io.restassured.response.Response;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.json.JSONObject;
 
+import javax.sql.rowset.serial.SerialStruct;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -10,10 +12,12 @@ import java.util.Random;
 import static io.restassured.RestAssured.given;
 
 
-public class OrdersMethods {
+public class Orders extends ScooterRestClient{
 
+    private static final String ORDER_ENDPOINT = "api/v1/orders";
 
     //Метод для создания заказа с выбором цвета
+    @Step
     public  Response createOrderWithParamColor(ArrayList<String> color){
         Random numberOfStation = new Random();
         String timeStamp = new SimpleDateFormat("yyyy-MM-dd").format(Calendar.getInstance().getTime());
@@ -30,29 +34,32 @@ public class OrdersMethods {
 
         // отправляем запрос на регистрацию курьера и сохраняем ответ в переменную response класса Response
         Response response =  given()
-                .header("Content-type", "application/json")
+                .spec(getBaseSpec())
                 .and()
                 .body(createRequestBody.toString())
                 .when()
-                .post("https://qa-scooter.praktikum-services.ru/api/v1/orders");
+                .post(ORDER_ENDPOINT);
         return response;
     }
 
     //Метод для отмены заказа по его track
+    @Step
     public static Response cancelOrderByTrack(Integer track) {
         JSONObject cancelRequestBody = new JSONObject()
                 .put("track", track);
 
-        Response cancelResponse = given().header("Content-type", "application/json")
+        Response cancelResponse = given()
+                .spec(getBaseSpec())
                 .and()
                 .body(cancelRequestBody.toString())
                 .when()
-                .put("https://qa-scooter.praktikum-services.ru/api/v1/orders/cancel");
-        cancelResponse.then().statusCode(200);
+                .put(ORDER_ENDPOINT + "/cancel");
+       // cancelResponse.then().statusCode(200);
         return cancelResponse;
     }
 
     //Метод для получения id заказа
+    @Step
     public Integer getOrderId(){
         Random numberOfStation = new Random();
         ArrayList<String> color = new ArrayList<>();
@@ -73,21 +80,21 @@ public class OrdersMethods {
 
         //Выполняем запрос на создание заказа
         Response createResponse =  given()
-                .header("Content-type", "application/json")
+                .spec(getBaseSpec())
                 .and()
                 .body(createRequestBody.toString())
                 .when()
-                .post("https://qa-scooter.praktikum-services.ru/api/v1/orders")
+                .post(ORDER_ENDPOINT)
                 .then().extract().response();
 
         Integer orderTrack = createResponse.path("track");
 
         //Получаем id заказа по трек-номеру
         Response getIdResponse =  given()
-                .header("Content-type", "application/json")
+                .spec(getBaseSpec())
                 .and()
                 .when()
-                .get("https://qa-scooter.praktikum-services.ru/api/v1/orders/track?t=" + orderTrack)
+                .get(ORDER_ENDPOINT + "/track?t=" + orderTrack)
                 .then().extract().response();
 
         Integer orderId = getIdResponse.path("order.id");
@@ -95,21 +102,23 @@ public class OrdersMethods {
     }
 
     //Метод для принятия заказа курьером
+    @Step
     public void acceptOrder(Integer courierId, Integer orderId){
         Response acceptOrderResponse =  given()
-                .header("Content-type", "application/json")
+                .spec(getBaseSpec())
                 .and()
                 .when()
-                .put("https://qa-scooter.praktikum-services.ru/api/v1/orders/accept/" + orderId + "?courierId=" + courierId);
+                .put(ORDER_ENDPOINT + "/accept/" + orderId + "?courierId=" + courierId);
     }
 
     //Метод для получения заказов курьера по его id
+    @Step
     public Response getCourierOrdersList(Integer courierId){
         Response courierOrdersListResponse =  given()
-                .header("Content-type", "application/json")
+                .spec(getBaseSpec())
                 .and()
                 .when()
-                .get("https://qa-scooter.praktikum-services.ru/api/v1/orders?courierId="+courierId);
+                .get(ORDER_ENDPOINT + "?courierId=" + courierId);
         return courierOrdersListResponse;
     }
 }

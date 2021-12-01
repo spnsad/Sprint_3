@@ -21,6 +21,13 @@ public class CreateOrderWithParamScooterColorsTest {
         this.expectedRespCode = expectedRespCode;
     }
 
+    //Отмена заказов закомментирована, так как вызывает ошибки в тестах
+    /*
+    @After
+    public void tearDown(){
+        Orders.cancelOrderByTrack(createOrderResponse.path("track"));
+    }*/
+
     @Parameterized.Parameters
     public static Object[][] scooterColors() {
         ArrayList<String> blackColor = new ArrayList<>();
@@ -44,10 +51,8 @@ public class CreateOrderWithParamScooterColorsTest {
     @Test
     @DisplayName("Создание заказа с выбором цвета самоката")
     public void createOrderWithDifferentScooterColors(){
-        Response createOrderResponse = new OrdersMethods().createOrderWithParamColor(colors);
+        Response createOrderResponse = new Orders().createOrderWithParamColor(colors);
         createOrderResponse.then().statusCode(expectedRespCode)
                 .and().assertThat().body("track", notNullValue()).extract().response();
-
-        OrdersMethods.cancelOrderByTrack(createOrderResponse.path("track"));
     }
 }

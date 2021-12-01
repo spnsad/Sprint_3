@@ -1,61 +1,51 @@
-import io.qameta.allure.Step;
 import io.qameta.allure.junit4.DisplayName;
-import io.restassured.response.Response;
-import org.apache.commons.lang3.RandomStringUtils;
-import static org.hamcrest.Matchers.equalTo;
-
+import io.restassured.response.ValidatableResponse;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
 
 public class CreateCourierTest {
+    private Courier courier;
+    private static CourierClient courierClient;
+    private int courierId;
 
-    @Test
-    @DisplayName("Успешная регистрация курьера")
-    public void checkSuccessCreateCourier() {
-        String login = RandomStringUtils.randomAlphabetic(10);
-        String password = RandomStringUtils.randomAlphabetic(10);
-        String firstName = RandomStringUtils.randomAlphabetic(10);
-        Response response = new CourierMethods().registerNewCourierAndReturnResponse(login, password, firstName);
-        response.then().statusCode(201)
-                .and().assertThat().body("ok", equalTo(true));
+    @Before
+    public void setUp() {
+        courier = Courier.createRandomCourier();
+        courierClient = new CourierClient();
+    }
 
-        CourierMethods.loginAndDeleteCourier(login, password);
+    @After
+    public void tearDown() {
+        CourierClient.deleteCourier(courierId);
     }
 
     @Test
-    @DisplayName("Регистрация курьера без указания логина")
-    public void checkCreateCourierWOLogin() {
-        String password = RandomStringUtils.randomAlphabetic(10);
-        String firstName = RandomStringUtils.randomAlphabetic(10);
-        Response resp = new CourierMethods().registerNewCourierAndReturnResponse(null, password, firstName);
-        resp.then().statusCode(400)
-                .and().assertThat().body("message", equalTo("Недостаточно данных для создания учетной записи"));
+    @DisplayName("Регистрация курьера с корректными данными")
+    public void checkCreateCourierWithValidData() {
+
+        ValidatableResponse response = courierClient.createCourier(courier);
+        courierId = CourierClient.loginCourier(CourierCredentials.from(courier)).extract().path("id");
+
+        int statusCode = response.extract().statusCode();
+
+        assertThat("Status code is incorrect", statusCode, equalTo(201));
+        assertThat("Courier ID is incorrect", courierId, is(not(0)));
     }
 
     @Test
-    @DisplayName("Регистрация курьера без указания пароля")
-    public void checkCreateCourierWOPassword(){
-        String login = RandomStringUtils.randomAlphabetic(10);
-        String firstName = RandomStringUtils.randomAlphabetic(10);
-        Response resp = new CourierMethods().registerNewCourierAndReturnResponse(login, null, firstName);
-        resp.then().statusCode(400)
-                .and().assertThat().body("message", equalTo("Недостаточно данных для создания учетной записи"));
-    }
-
-    @Test
-    @DisplayName("Регистрация курьера с повторяющимся логином")
+    @DisplayName("Повторная регистрация курьера")
     public void checkCreateRepeatedCourier(){
-        String login = RandomStringUtils.randomAlphabetic(10);
-        String password = RandomStringUtils.randomAlphabetic(10);
-        String firstName = RandomStringUtils.randomAlphabetic(10);
+        courierClient.createCourier(courier);
+        ValidatableResponse response = courierClient.createCourier(courier);
 
-        Response responseFirst = new CourierMethods().registerNewCourierAndReturnResponse(login, password, firstName);
-        responseFirst.then().statusCode(201);
+        int statusCode = response.extract().statusCode();
+        String errorMessage = response.extract().path("message");
 
-        Response responseRepeat = new CourierMethods().registerNewCourierAndReturnResponse(login,password, firstName);
-        responseRepeat.then().statusCode(409)
-                .and().assertThat().body("message", equalTo("Этот логин уже используется. Попробуйте другой."));
-
-        CourierMethods.loginAndDeleteCourier(login,password);
+        assertThat("Courier is created", errorMessage, equalTo("Этот логин уже используется. Попробуйте другой."));
+        assertThat("Status code is incorrect", statusCode, equalTo(409));
     }
 }
